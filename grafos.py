@@ -25,7 +25,7 @@ class Grafo(object):
         """Comprueba si el vertice esta dentro del grafo"""
         return v in self.vertices
 
-    def agregar_arista(self, v, w, peso):
+    def agregar_arista(self, v, w, peso=1):
         """Agrega o actualiza una arista al grafo, si los vertices ingresados existen"""
         if not (v,w) in self.vertices: return False
         self.vertices[v][w]= peso
@@ -44,7 +44,7 @@ class Grafo(object):
         """Ve si existe una arista entre los vertices indicados"""
         return w in self.vertices[v]
 
-    def obtener_adyacentes(self,v):
+    def adyacentes(self,v):
         return list(self.vertices[v].keys())
 
     def crear_iterador(self):
