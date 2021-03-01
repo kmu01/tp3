@@ -46,9 +46,9 @@ def camino(canciones, params):
 
 def mas_importantes(canciones, params):
     """
-        :param canciones:
-        :param params:
-        momento page_rank
+    :param canciones:
+    :param params:
+    momento page_rank
     """
     pass
 
@@ -60,19 +60,47 @@ def recomendacion(canciones, params):
 
 def ciclo(canciones, params):
     """
-    :param canciones:
-    :param params:
-    Seguramente esto es tema de backtracking
+    :param canciones:Grafo no dirigido que relaciona canciónes que comparten playlists
+    :param params: El largo elegido para el ciclo y la cancion por la que comienza
+    Recorre el grafo desde la cancion de origen utilizando backtracking hasta generar un ciclo
+    de n canciones
     """
-    pass
+    n_origen = params.split(' ')
+    if (len(n_origen)!= 2):
+        print(ERR_FORMATO)
+        return
+    n = n_origen[0]
+    origen = n_origen[1]
+    canciones = set()
+    canciones.add(origen)
+    if (not _ciclo(canciones, n, origen, 0, canciones)):
+        print (ERR_CAMINO)
+        return
+    for cancion in canciones:
+        print (cancion, end=' --> ')
+    print (origen)
+    return
+
 
 def rango(canciones, params):
     """
-    :param canciones:
-    :param params:
-    Reciclamos camino_minimo_bfs, pero sin especificar destino.
+    :param canciones: Grafo no dirigido que relaciona canciónes que comparten playlists
+    :param params: La cancion origen para la busqueda y el rango o distancia n que se busca
+    Se busca determinar la canidad de canciones que se encuentran a una distancia n de la cancion de origen
+    Se imprime por pantalla dicha cantidad, pudiendo ser esta 0.
     """
-    pass
+    n_origen = params.split(' ')
+    if (len(n_origen)!= 2):
+        print(ERR_FORMATO)
+        return
+    n = n_origen[0]
+    origen = n_origen[1]
+    padres, distancias = camino_minimo_bfs(canciones,origen)
+    contador = 0
+    for cancion in distancias:
+        if (distancias[cancion] == n):
+            contador += 1
+    print (contador)
 
 
 def clustering(canciones, cancion=None):
@@ -135,3 +163,29 @@ def imprimir_camino_minimo(canciones, padres, destino):
             txt.write(camino[i] + ' --> tiene una playlist --> ' + canciones.obtener_peso_arista(camino[i], camino[i+1]) + ' --> donde aparece -->')
 
     print(txt.getvalue())
+
+def _ciclo(grafo, largo, cancion_actual, posicion_actual, canciones):
+    """
+    Funcion auxiliar que trabaja de forma recursiva. Recibe el largo esperado del ciclo,
+    la cancion y posicion actual y las canciones consideradas dentro del ciclo.
+    """
+    if (largo == posicion_actual and canciones[0]==cancion_actual):
+        return True
+    for cancion in grafo.adyacentes(cancion_actual):
+        posicion_actual += 1
+        canciones.add(cancion)
+        if (not es_viable (largo, cancion, posicion_actual, canciones)):
+            canciones.pop()
+            continue
+        if (_ciclo(grafo,largo,cancion,posicion_actual,canciones)):
+            return True
+    return False
+
+def es_viable (largo, cancion, posicion, canciones):
+    if (posicion > largo): #Poda por si ya me pase del largo pedido
+        return False
+    if (cancion in canciones and posicion != largo): #Evita que vuelva por una arista de la que vino a no ser que este al final
+        return False
+    if (largo == posicion_actual and canciones[0]!=cancion): #Cuando llego a recorrer las canciones necesarias se fija si es un ciclo
+        return False
+    return True
