@@ -1,3 +1,5 @@
+from random import random.choice
+
 # Definimos un Grafo a partir de un diccionario de diccionarios
 class Grafo(object):
     def __init__(self, es_dirigido=False):
@@ -49,7 +51,6 @@ class Grafo(object):
 
     def crear_iterador(self):
         return iter(self.vertices)
-
-
-
-
+    
+    def obtener_vertice_aleatorio (self):
+        return random.choice (list(self.vertices.keys()))
