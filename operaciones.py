@@ -207,5 +207,6 @@ def obtener_clustering_individual(canciones, c):
     grado_salida = len(adyacentes)
     for v in adyacentes:
         for w in adyacentes:
+            if v == w: continue
             if canciones.es_adyacente(v,w): cant+=1
     return cant/((grado_salida-1)*grado_salida)
