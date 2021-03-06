@@ -66,14 +66,14 @@ def ciclo(canciones, params):
     de n canciones
     """
     n_origen = params.split(' ')
-    if (len(n_origen)!= 2):
+    if len(n_origen)!= 2:
         print(ERR_FORMATO)
         return
     n = n_origen[0]
     origen = n_origen[1]
     canciones = set()
     canciones.add(origen)
-    if (not _ciclo(canciones, n, origen, 0, canciones)):
+    if not _ciclo(canciones, n, origen, 0, canciones):
         print (ERR_CAMINO)
         return
     for cancion in canciones:
@@ -100,11 +100,12 @@ def rango(canciones, params):
     for cancion in distancias:
         if (distancias[cancion] == n):
             contador += 1
-    print (contador)
+    print(contador)
 
 
 def clustering(canciones, cancion=None):
-    pass
+    if not cancion: return obtener_clustering_promedio(canciones)
+    else: obtener_clustering_individual(canciones, cancion)
 
 
 # ╔════════════════════════════════════╗
@@ -186,6 +187,25 @@ def es_viable (largo, cancion, posicion, canciones):
         return False
     if (cancion in canciones and posicion != largo): #Evita que vuelva por una arista de la que vino a no ser que este al final
         return False
-    if (largo == posicion_actual and canciones[0]!=cancion): #Cuando llego a recorrer las canciones necesarias se fija si es un ciclo
+    if (largo == posicion and canciones[0]!=cancion): #Cuando llego a recorrer las canciones necesarias se fija si es un ciclo
         return False
     return True
+
+def obtener_clustering_promedio(canciones):
+    """Devuelve el coeficiente de Clustering promedio entre las canciones"""
+    suma = 0
+    for v in canciones: suma += obtener_clustering_individual(canciones, v)
+    return suma/len(canciones)
+
+def obtener_clustering_individual(canciones, c):
+    """Devuelve el coeficiente de Clustering de una canción"""
+    if not canciones.pertenece(c):
+        print(ERR_CANCIONES)
+        return
+    cant = 0
+    adyacentes = canciones.obtener_adyacentes(c)
+    grado_salida = len(adyacentes)
+    for v in adyacentes:
+        for w in adyacentes:
+            if canciones.es_adyacente(v,w): cant+=1
+    return cant/((grado_salida-1)*grado_salida)
