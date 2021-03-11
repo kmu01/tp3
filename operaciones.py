@@ -100,9 +100,9 @@ def ciclo(canciones, n, origen):
     Recorre el grafo desde la cancion de origen utilizando backtracking hasta generar un ciclo
     de n canciones.
     """
-    canciones = set()
-    canciones.add(origen)
-    if not _ciclo(canciones, n, origen, 0, canciones):
+    listado_canciones = set()
+    listado_canciones.add(origen)
+    if not _ciclo(canciones, n, origen, 0, listado_canciones):
         print(ERR_CAMINO)
         return
     for cancion in canciones:
