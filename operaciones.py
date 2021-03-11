@@ -2,14 +2,18 @@ from grafos import Grafo
 from errores import *
 from collections import deque
 from io import StringIO
+import operator
 
 GRAFO_USUARIOS = 'users'
 GRAFO_PLAYLIST = 'playlists'
 
+COEFICIENTE_AMORTIGUACION = 0.85
+CANTIDAD_ITERACIONES_PAGERANK = 5
+
 # Diccionario que tiene las distintas operaciones con el grafo que requieren para operar
 COMANDOS = {
     'camino': GRAFO_USUARIOS,
-    'mas_importantes': GRAFO_PLAYLIST,
+    'mas_importantes': GRAFO_USUARIOS,
     'recomendacion': GRAFO_USUARIOS,
     'ciclo': GRAFO_PLAYLIST,
     'rango': GRAFO_PLAYLIST,
@@ -44,18 +48,57 @@ def camino(canciones, params):
     return
 
 
-def mas_importantes(canciones, params):
+def mas_importantes(canciones, params, PR):
     """
-    :param canciones:
-    :param params:
-    momento page_rank
+    :param canciones: Grafo bipartito de canciones y usuarios, sus aristas tienen info de playlist.
+    :param params: Numero de canciones que se desea mostrar.
+    Se buscan e imprimen las n canciones mas importantes del grafo
     """
-    pass
+    n = int(params[0])
+    if (len (PR.keys())==0):
+        pagerank(canciones, PR)
+    i = 0
+    w = 0
+    while (w<n):
+        # Para ver si es una cancion, porque si es un usuario no quiero agregarlo
+        if (" - " in pagerank[i][0] and i<n-1):
+            print(pagerank[i][0],end= "; ")
+            w+=1
+        else if (" - " in pagerank[i][0] and i==n-1):
+            print (pagerank[i][0])
+            w+=1
+        i+=1
 
 
 def recomendacion(canciones, params):
-
-    pass
+    """
+    :param canciones: Grafo bipartito de canciones y usuarios, sus aristas tienen info de playlist.
+    :param params: usuarios/canciones indicando si se desea una recomendacion de usuarios o canciones,
+    n, la cantidad de recomendaciones deseadas y una serie de canciones a partir de las cuales se 
+    buscan las recomendaciones.
+    """
+    tipo,cantidad,canciones = params.split (' ')
+    cantidad = int (cantidad)
+    #Le doy la forma aleatoria a las canciones
+    canciones = random.shuffle(canciones.split (" >>>> "))
+    pr_personalizado = {}
+    for cancion in canciones:
+        pagerank_personalizado (canciones, cancion, pr_personalizado)
+    pr_ordenado = sorted (pr_personalizado.items(),key=operator.itemgetter(1),reverse=True)
+    listado = []
+    for elemento in pr_ordenado:
+        #Si busco canciones y es una cancion lo agrego. Adevas verifico que no sea una de las pasadas por parametro
+        if (" - " in elemento[0] and tipo == "canciones" and elemento[0] not in canciones):
+            listado.append(elemento[0])
+        #Si busco usuarios y  no es una cancion (es usuario) lo agrego
+        else if (" - " not in elemento[0] and tipo == "usuarios"):
+            listado.append(elemento[0])
+    for i in range (cantidad):
+        if (i < cantidad-1):
+            print (listado[i],end = '; ')
+        else:
+            print (listado[i])
+    return
 
 
 def ciclo(canciones, params):
@@ -69,7 +112,7 @@ def ciclo(canciones, params):
     if len(n_origen)!= 2:
         print(ERR_FORMATO)
         return
-    n = n_origen[0]
+    n = int(n_origen[0])
     origen = n_origen[1]
     canciones = set()
     canciones.add(origen)
@@ -101,6 +144,7 @@ def rango(canciones, params):
         if (distancias[cancion] == n):
             contador += 1
     print(contador)
+    return
 
 
 def clustering(canciones, cancion=None):
@@ -210,3 +254,41 @@ def obtener_clustering_individual(canciones, c):
             if v == w: continue
             if canciones.es_adyacente(v,w): cant+=1
     return cant/((grado_salida-1)*grado_salida)
+
+def pagerank (grafo, pagerank):
+    """Calcula el pagerank de un grafo. Devuelve un diccionario con cada vertice como clave"""
+    cant_vertices = grafo.obtener_cantidad_vertices()
+    for vertice in canciones.obtener_vertices():
+        pagerank[vertice] = 1/cant_vertices
+    for i in range (CANTIDAD_ITERACIONES_PAGERANK):
+        for vertice in random.shuffle(grafo.obtener_vertices()):
+            valor = pagerank_vertice(grafo, vertice, pagerank, cant_vertices)
+            pagerank[valor] = valor
+    pagerank_ordenado = sorted (pagerank.items(),key=operator.itemgetter(1),reverse=True)
+    return pagerank_ordenado
+
+
+def pagerank_vertice (grafo, vertice, valores, n):
+    """Calcula el valor de pagerank especifico para un vertice de un grafo"""
+    sumatoria = 0
+    for adyacente in grafo.obtener_adyacentes(vertice):
+        sumatoria += (valores[adyacente])/len(grafo.obtener_adyacentes(adyacente))
+    valor = ((1-COEFICIENTE_AMORTIGUACION)/n) + (COEFICIENTE_AMORTIGUACION*sumatoria)
+    return valor
+
+
+def pagerank_personalizado (grafo, vertice, pr_personalizado):    
+    visitados = set ()
+    visitados.add (vertice)
+    _pagerank_personalizado (grafo,vertice,pr_personalizado, visitados)
+    
+
+def _pagerank_personalizado(grafo,v,pr_personalizado,visitados):
+    if (len(visitados) == grafo.cant_vertices()):
+        return
+    actual = grafo.obtener_adyacente_aleatorio(v)
+    cant_adyacentes = len(grafo.adyacentes(v))
+    pr_personalizado[actual] = (pr_personalizado[v] / cant_adyacentes)
+    if (actual not in visitados):
+        visitados.add (actual)
+    _pagerank_personalizado (grafo,actual,tipo,cant,pr_personalizado,visitados)
