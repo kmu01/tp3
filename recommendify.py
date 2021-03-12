@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import sys
 import csv
 import operaciones as op
@@ -19,7 +20,7 @@ def guardar_datos_de_tsv(ruta):
         if tiene_encabezado:
             next(lector)
         for fila in lector:
-            datos.append(fila);
+            datos.append(fila)
     return datos
 
 def cargar_grafo_usuarios(datos, canciones_usuarios):
@@ -50,9 +51,11 @@ def cargar_grafo_playlist(datos, canciones_playlist):
         else:
             playlist_actual = fila[4]
             comparten_playlist = []
+            comparten_playlist.append(v)
         canciones_playlist.agregar_vertice(v)
-        for i in comparten_playlist:
-            canciones_playlist.agregar_arista(comparten_playlist[i], v)
+        for cancion in comparten_playlist:
+            if (cancion != v):
+                canciones_playlist.agregar_arista(cancion, v)
 
 def procesar_comandos(datos, cmd, params, canciones_usuarios, canciones_playlist, pagerank):
     """
@@ -72,7 +75,7 @@ def procesar_comandos(datos, cmd, params, canciones_usuarios, canciones_playlist
     elif cmd == op.CMD_IMPORTANTES:
         if canciones_usuarios.obtener_cantidad_vertices() == 0:
             cargar_grafo_usuarios(datos, canciones_usuarios)
-        op.mas_importantes(canciones_usuarios, int(params[0]), pagerank)
+        op.mas_importantes(canciones_usuarios, int(params), pagerank)
 
     elif cmd == op.CMD_RECOMENDS:
         parametros = params.split(' ', 2)
@@ -85,24 +88,28 @@ def procesar_comandos(datos, cmd, params, canciones_usuarios, canciones_playlist
 
     elif cmd == op.CMD_CICLO:
         n_origen = params.split(' ')
-        if len(n_origen) != 2:
+        if len(n_origen) < 2:
             print(ERR_FORMATO)
             return
-        if canciones_usuarios.obtener_cantidad_vertices() == 0:
+        if canciones_playlist.obtener_cantidad_vertices() == 0:
             cargar_grafo_playlist(datos, canciones_playlist)
-        op.ciclo(canciones_playlist, int(n_origen[0]), n_origen[1])
+        n = int (n_origen[0])
+        origen = ' '.join(n_origen[1:])
+        op.ciclo(canciones_playlist, n, origen)
 
     elif cmd == op.CMD_RANGO:
         n_origen = params.split(' ')
-        if len(n_origen) != 2:
+        if len(n_origen) < 2:
             print(ERR_FORMATO)
             return
-        if canciones_usuarios.obtener_cantidad_vertices() == 0:
+        n = int(n_origen[0])
+        origen = ' '.join (n_origen[1:])
+        if canciones_playlist.obtener_cantidad_vertices() == 0:
             cargar_grafo_playlist(datos, canciones_playlist)
-        op.rango(canciones_playlist, int(n_origen[0]), n_origen[1])
+        op.rango(canciones_playlist, n, origen)
 
     elif cmd == op.CMD_CLUSTER:
-        if canciones_usuarios.obtener_cantidad_vertices() == 0:
+        if canciones_playlist.obtener_cantidad_vertices() == 0:
             cargar_grafo_playlist(datos, canciones_playlist)
         op.clustering(canciones_playlist, params)
 
@@ -128,7 +135,9 @@ def procesar_entrada(datos, canciones_usuarios, canciones_playlist, pagerank):
 def main():
     if len(sys.argv) != 2:
         print(ERR_PARAMS)
-    canciones_usuarios, canciones_playlist = Grafo()
+        return
+    canciones_usuarios = Grafo()
+    canciones_playlist = Grafo()
     pagerank = {}
     datos = guardar_datos_de_tsv(sys.argv[1])
     procesar_entrada(datos, canciones_usuarios, canciones_playlist, pagerank)

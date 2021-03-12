@@ -1,4 +1,4 @@
-from random import random
+from random import shuffle
 from grafos import Grafo
 from errores import *
 from collections import deque
@@ -9,7 +9,8 @@ GRAFO_USUARIOS = 'users'
 GRAFO_PLAYLIST = 'playlists'
 
 COEFICIENTE_AMORTIGUACION = 0.85
-CANTIDAD_ITERACIONES_PAGERANK = 5
+CANTIDAD_ITERACIONES_PAGERANK = 40
+LARGO_PR_PERSONALIZADO = 100
 
 # Operaciones
 CMD_CAMINOS = 'camino'
@@ -31,8 +32,11 @@ def camino(canciones, origen, destino):
     :param destino: Canción donde termina.
     Recorre el grafo desde nuestro origen hasta llegar a nuestro destino, guardando el trayecto que hizo en el camino.
     """
-    if not canciones.pertenece(origen) or not canciones.pertenece(destino):
-        print(ERR_CANCIONES)
+    if (" - " not in origen) or (" - " not in destino):
+        print (ERR_ORIGEN_DEST)
+        return
+    if (not canciones.pertenece(origen)) or (not canciones.pertenece(destino)):
+        print(ERR_ORIGEN_DEST)
         return
     padres, distancia = camino_minimo_bfs(canciones, origen, destino)
     if not padres or not distancia:
@@ -50,15 +54,15 @@ def mas_importantes(canciones, n, PR):
     """
     if len(PR.keys()) == 0:
         pagerank(canciones, PR)
+    pr_ordenado = sorted(PR.items(), key=operator.itemgetter(1), reverse=True)
     i = 0
     w = 0
     while (w < n):
-        # Para ver si es una cancion, porque si es un usuario no quiero agregarlo
-        if (" - " in pagerank[i][0] and i < n - 1):
-            print(pagerank[i][0], end="; ")
+        if (' - ' in pr_ordenado[i][0] and w < n - 1):
+            print(pr_ordenado[i][0], end="; ")
             w += 1
-        elif (" - " in pagerank[i][0] and i == n-1):
-            print(pagerank[i][0])
+        elif (' - ' in pr_ordenado[i][0] and w == n-1):
+            print(pr_ordenado[i][0])
             w += 1
         i += 1
 
@@ -69,19 +73,19 @@ def recomendacion(canciones, tipo, cantidad, lista_canciones):
     :param params: usuarios/canciones indicando si se desea una recomendacion de usuarios o canciones,
     n, la cantidad de recomendaciones deseadas y una serie de canciones a partir de las cuales se
     buscan las recomendaciones.
+    Genera una cantidad deseada de recomendaciones de usuarios o de canciones a partir de una serie
+    de canciones pasadas por parámetro haciendo uso del algoritmo de PageRank Personalizado.
     """
-    # Le doy la forma aleatoria a las canciones
-    lista_canciones = random.shuffle(lista_canciones.split(" >>>> "))
-    pr_personalizado = {}
+    lista_canciones = lista_canciones.split(" >>>> ")
+    shuffle (lista_canciones)
+    sumas = {}
     for cancion in lista_canciones:
-        pagerank_personalizado(canciones, cancion, pr_personalizado)
-    pr_ordenado = sorted(pr_personalizado.items(), key=operator.itemgetter(1), reverse=True)
+        pagerank_personalizado(canciones, cancion, 1, sumas, 0)
+    pr_ordenado = sorted(sumas.items(), key=operator.itemgetter(1), reverse=True)
     listado = []
     for elemento in pr_ordenado:
-        # Si busco canciones y es una cancion lo agrego. Adevas verifico que no sea una de las pasadas por parametro
-        if " - " in elemento[0] and tipo == "canciones" and elemento[0] not in canciones:
+        if " - " in elemento[0] and tipo == "canciones" and elemento[0] not in lista_canciones:
             listado.append(elemento[0])
-        # Si busco usuarios y  no es una cancion (es usuario) lo agrego
         elif " - " not in elemento[0] and tipo == "usuarios":
             listado.append(elemento[0])
     for i in range(cantidad):
@@ -100,12 +104,11 @@ def ciclo(canciones, n, origen):
     Recorre el grafo desde la cancion de origen utilizando backtracking hasta generar un ciclo
     de n canciones.
     """
-    listado_canciones = set()
-    listado_canciones.add(origen)
+    listado_canciones = []
     if not _ciclo(canciones, n, origen, 0, listado_canciones):
         print(ERR_CAMINO)
         return
-    for cancion in canciones:
+    for cancion in listado_canciones:
         print(cancion, end=' --> ')
     print(origen)
     return
@@ -124,14 +127,13 @@ def rango(canciones, n, origen):
         if distancias[cancion] == n:
             contador += 1
     print(contador)
-    return
 
 
 def clustering(canciones, cancion=None):
     if not cancion:
-        return obtener_clustering_promedio(canciones)
+        print (obtener_clustering_promedio(canciones))
     else:
-        obtener_clustering_individual(canciones, cancion)
+        print (obtener_clustering_individual(canciones, cancion))
 
 
 # ╔════════════════════════════════════╗
@@ -147,24 +149,25 @@ def camino_minimo_bfs(grafo, origen, destino=None):
         - Calcula los caminos minimos de cada vertice al origen, y devuelve padres y distancias
     """
     distancia, padres, visitado = {}, {}, {}
-    for v in grafo:
+    for v in grafo.obtener_vertices():
         distancia[v] = float('inf')
     distancia[origen] = 0
+    padres[origen] = None
+    visitado[origen] = True
     q = deque()
     q.append(origen)
     while q:
         v = q.popleft()
-        for w in grafo.adyacentes:
-            if v not in visitado:
-                distancia[w] += 1
+        for w in grafo.adyacentes(v):
+            if w not in visitado.keys():
+                distancia[w] = distancia [v] + 1
                 padres[w] = v
                 visitado[w] = True
-                q.append(v)
-                # Si llegamos a nuestro destino paramos
-                if destino and v == destino:
-                    return padres, distancia
+                q.append(w)
+            if destino and w == destino:
+                return padres, distancia
     if not destino: return padres, distancia
-    return None
+    return None, None
 
 
 def imprimir_camino_minimo(canciones, padres, destino):
@@ -178,20 +181,18 @@ def imprimir_camino_minimo(canciones, padres, destino):
     while padres[actual]:
         camino.append(actual)
         actual = padres[actual]
+    camino.append(actual)
     camino.reverse()
     txt = StringIO()
-    # Como se recorre: cancion -> usuario -> cancion, la pos de las canciones son pares y la de los usuarios es impar
-    # (estoy seguro que hay una forma mas elegante de hacer esto)
-    for i in range(len(camino)):
+    for i in range(len(camino)-1):
         if i % 2 == 0:
             txt.write(camino[i])
-            if camino[i + 1]:
-                txt.write(' --> ' + 'aparece en playlist' + ' --> ' + canciones.obtener_peso_arista(camino[i], camino[
-                    i + 1]) + ' --> de --> ')
+            txt.write(' --> ' + 'aparece en playlist' + ' --> ' + canciones.obtener_peso_arista(camino[i], camino[
+                i + 1]) + ' --> de --> ')
         else:
             txt.write(camino[i] + ' --> tiene una playlist --> ' + canciones.obtener_peso_arista(camino[i], camino[
                 i + 1]) + ' --> donde aparece -->')
-
+    txt.write (' ' + camino[len(camino)-1])
     print(txt.getvalue())
 
 
@@ -202,44 +203,53 @@ def _ciclo(grafo, largo, cancion_actual, posicion_actual, canciones):
     """
     if largo == posicion_actual and canciones[0] == cancion_actual:
         return True
+    canciones.append(cancion_actual)
     for cancion in grafo.adyacentes(cancion_actual):
-        posicion_actual += 1
-        canciones.add(cancion)
-        if not es_viable(largo, cancion, posicion_actual, canciones):
-            canciones.pop()
+        if not es_viable(largo, cancion, posicion_actual+1, canciones):            
             continue
-        if _ciclo(grafo, largo, cancion, posicion_actual, canciones):
+        if _ciclo(grafo, largo, cancion, posicion_actual+1, canciones):
             return True
+    canciones.pop()
     return False
 
 
 def es_viable(largo, cancion, posicion, canciones):
-    if (posicion > largo):  # Poda por si ya me pase del largo pedido
+    """
+    Funcion auxiliar para el calculo de un ciclo que verifica si una solucion parcial es viable
+    """
+    if (posicion > largo):
         return False
-    if (
-            cancion in canciones and posicion != largo):  # Evita que vuelva por una arista de la que vino a no ser que este al final
+    if (cancion in canciones and posicion != largo):
         return False
     if (largo == posicion and canciones[
-        0] != cancion):  # Cuando llego a recorrer las canciones necesarias se fija si es un ciclo
+        0] != cancion):
         return False
     return True
 
 
-def obtener_clustering_promedio(canciones):
-    """Devuelve el coeficiente de Clustering promedio entre las canciones"""
+def obtener_clustering_promedio(grafo):
+    """
+    Devuelve el coeficiente de Clustering promedio entre las canciones
+    """
     suma = 0
-    for v in canciones: suma += obtener_clustering_individual(canciones, v)
-    return suma / len(canciones)
+    canciones = grafo.obtener_vertices()
+    cant_vertices = grafo.obtener_cantidad_vertices()
+    for v in canciones: suma += obtener_clustering_individual(grafo, v)
+    return (suma / cant_vertices)
 
 
 def obtener_clustering_individual(canciones, c):
-    """Devuelve el coeficiente de Clustering de una canción"""
+    """
+    Devuelve el coeficiente de Clustering de una canción
+    """
     if not canciones.pertenece(c):
         print(ERR_CANCIONES)
         return
     cant = 0
-    adyacentes = canciones.obtener_adyacentes(c)
+    adyacentes = canciones.adyacentes(c)
     grado_salida = len(adyacentes)
+    if (grado_salida < 2):
+        return 0
     for v in adyacentes:
         for w in adyacentes:
             if v == w: continue
@@ -247,40 +257,43 @@ def obtener_clustering_individual(canciones, c):
     return cant / ((grado_salida - 1) * grado_salida)
 
 
-def pagerank(grafo, pagerank):
-    """Calcula el pagerank de un grafo. Devuelve un diccionario con cada vertice como clave"""
+def pagerank(grafo, PR):
+    """
+    Calcula el pagerank de un grafo
+    """
     cant_vertices = grafo.obtener_cantidad_vertices()
-    for vertice in canciones.obtener_vertices():
-        pagerank[vertice] = 1 / cant_vertices
+    for vertice in grafo.obtener_vertices():
+        PR[vertice] = 1 / cant_vertices
     for i in range(CANTIDAD_ITERACIONES_PAGERANK):
-        for vertice in random.shuffle(grafo.obtener_vertices()):
-            valor = pagerank_vertice(grafo, vertice, pagerank, cant_vertices)
-            pagerank[valor] = valor
-    pagerank_ordenado = sorted(pagerank.items(), key=operator.itemgetter(1), reverse=True)
-    return pagerank_ordenado
+        vertices = grafo.obtener_vertices()
+        shuffle(vertices)
+        for vertice in vertices:
+            PR[vertice] = pagerank_vertice(grafo, vertice, PR, cant_vertices)
+    return
 
 
-def pagerank_vertice(grafo, vertice, valores, n):
-    """Calcula el valor de pagerank especifico para un vertice de un grafo"""
+def pagerank_vertice(grafo, vertice, PR, n):
+    """
+    Calcula el valor de pagerank especifico para un vertice de un grafo
+    """
     sumatoria = 0
-    for adyacente in grafo.obtener_adyacentes(vertice):
-        sumatoria += (valores[adyacente]) / len(grafo.obtener_adyacentes(adyacente))
+    for adyacente in grafo.adyacentes(vertice):
+        sumatoria += (PR[adyacente]) / len(grafo.adyacentes(adyacente))
     valor = ((1 - COEFICIENTE_AMORTIGUACION) / n) + (COEFICIENTE_AMORTIGUACION * sumatoria)
     return valor
 
 
-def pagerank_personalizado(grafo, vertice, pr_personalizado):
-    visitados = set()
-    visitados.add(vertice)
-    _pagerank_personalizado(grafo, vertice, pr_personalizado, visitados)
-
-
-def _pagerank_personalizado(grafo, v, pr_personalizado, visitados):
-    if (len(visitados) == grafo.cant_vertices()):
+def pagerank_personalizado(grafo, v, valor, suma,n):
+    """
+    Calcula de forma recursiva el PageRank Personalizado hasta llegar a un largo predefinido
+    """
+    if (n == LARGO_PR_PERSONALIZADO):
         return
     actual = grafo.obtener_adyacente_aleatorio(v)
     cant_adyacentes = len(grafo.adyacentes(v))
-    pr_personalizado[actual] = (pr_personalizado[v] / cant_adyacentes)
-    if (actual not in visitados):
-        visitados.add(actual)
-    _pagerank_personalizado(grafo, actual, tipo, cant, pr_personalizado, visitados)
+    nuevo_valor = (valor/ cant_adyacentes)
+    if (not actual in suma.keys()):
+        suma[actual] = nuevo_valor
+    else:
+        suma[actual] += nuevo_valor
+    pagerank_personalizado(grafo, actual, nuevo_valor, suma, n+1)

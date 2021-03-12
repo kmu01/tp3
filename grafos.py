@@ -1,6 +1,5 @@
 from random import *
 
-
 # Definimos un Grafo a partir de un diccionario de diccionarios
 class Grafo(object):
     def __init__(self, es_dirigido=False):
@@ -10,7 +9,7 @@ class Grafo(object):
 
     def agregar_vertice(self, v):
         """Agrega un vertice al grafo"""
-        if v not in self.vertices:
+        if not v in self.vertices.keys():
             self.vertices[v] = {}
 
     def borrar_vertice(self, vertice):
@@ -30,11 +29,12 @@ class Grafo(object):
 
     def pertenece(self,v):
         """Comprueba si el vertice esta dentro del grafo"""
-        return v in self.vertices
+        return v in self.vertices.keys()
 
     def agregar_arista(self, v, w, peso=1):
         """Agrega o actualiza una arista al grafo, si los vertices ingresados existen"""
-        if not (v,w) in self.vertices: return False
+        if not v in self.vertices or not w in self.vertices:
+            return False
         self.vertices[v][w]= peso
         if not self.dirigido: self.vertices[w][v] = peso
 
@@ -65,4 +65,4 @@ class Grafo(object):
     
     def obtener_adyacente_aleatorio (self,v):
         """Devuelve un vertice adyacente a v de forma aleatoria"""
-        return random.choice(list(self.vertices[v].keys()))
+        return choice(list(self.vertices[v].keys()))
